@@ -1,2 +1,2 @@
 # sentinel
-MySQL Failover and HA
+MySQL Failover and HA Tool
