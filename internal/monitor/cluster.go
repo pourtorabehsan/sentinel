@@ -19,7 +19,7 @@ func NewCluster(name string, primaryEndpoint Endpoint, conf Config) (*Cluster, e
 		config: conf,
 	}
 
-	primary, err := openInstance(primaryEndpoint, conf.instanceConfig())
+	primary, err := openInstance(primaryEndpoint, conf)
 	if err != nil {
 		return nil, err
 	}
@@ -32,12 +32,6 @@ func (c *Cluster) addInstance(i *Instance) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.instances = append(c.instances, i)
-}
-
-func (c *Cluster) getInstances() []*Instance {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.instances
 }
 
 func (c *Cluster) Monitor(ctx context.Context) error {

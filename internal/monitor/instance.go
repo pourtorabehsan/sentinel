@@ -19,11 +19,11 @@ type Instance struct {
 
 	source   *Instance
 	replicas []*Instance
-	conf     instanceConfig
+	config   Config
 }
 
-func openInstance(endpoint Endpoint, conf instanceConfig) (*Instance, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/", conf.monitorUsername, conf.monitorPassword, endpoint.Host, endpoint.Port)
+func openInstance(endpoint Endpoint, conf Config) (*Instance, error) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/", conf.MonitorUsername, conf.MonitorPassword, endpoint.Host, endpoint.Port)
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func openInstance(endpoint Endpoint, conf instanceConfig) (*Instance, error) {
 	return &Instance{
 		db:       db,
 		endpoint: endpoint,
-		conf:     conf,
+		config:   conf,
 	}, nil
 }
 
