@@ -1,0 +1,13 @@
+monitor:
+  interval: 5s
+  health_check_retry: 3
+  health_check_delay: 2s
+
+http:
+  port: 8080
+  host: "0.0.0.0"
+
+failover:
+  automatic: true
+  max_failure_time: 30s
+  min_replica_lag: 10s

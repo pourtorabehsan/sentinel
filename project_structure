@@ -1,0 +1,29 @@
+sentinel/
+├── cmd/
+│   └── sentinel/
+│       └── main.go         # Application entry point
+├── internal/
+│   ├── api/               # HTTP API handlers
+│   │   ├── handler.go     # Handler definitions
+│   │   └── router.go      # Router setup
+│   ├── config/           # Configuration management
+│   │   └── config.go     # Configuration structures and loading
+│   ├── domain/           # Core domain models
+│   │   ├── instance.go   # MySQL instance representation
+│   │   └── topology.go   # Topology representation
+│   ├── monitor/          # MySQL monitoring logic
+│   │   ├── monitor.go    # Monitor implementation
+│   │   └── health.go     # Health check logic
+│   ├── failover/         # Failover operations
+│   │   ├── orchestrator.go # Failover orchestration
+│   │   ├── automatic.go    # Automatic failover logic
+│   │   └── manual.go       # Manual failover operations
+│   └── storage/          # State storage
+│       └── state.go      # State management
+├── pkg/                  # Public packages that could be used by other projects
+│   └── mysql/           # MySQL related utilities
+│       ├── client.go    # MySQL client wrapper
+│       └── replication.go # Replication related functions
+├── go.mod
+├── go.sum
+└── Makefile
