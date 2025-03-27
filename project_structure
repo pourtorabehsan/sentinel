@@ -1,0 +1,14 @@
+sentinel/
+├── cmd/
+│   └── sentinel/           # Main application entry point
+├── internal/
+│   ├── core/              # Core domain models and interfaces
+│   │   ├── event/         # Event-related types and interfaces
+│   │   ├── handler/       # Event handler interfaces
+│   │   └── failover/      # Failover-related interfaces and types
+│   ├── mysql/             # MySQL-specific implementations
+│   ├── platform/          # Platform-specific utilities
+│   └── server/            # API server implementation
+├── pkg/                   # Public packages that could be used by other projects
+├── config/               # Configuration files and templates
+└── tests/                # Integration and end-to-end tests
