@@ -1,0 +1,45 @@
+# Sentinel Production Configuration Example
+# Copy this file to config.yaml and customize for your environment
+
+mode: multi
+log_level: info
+
+state_store:
+  type: mysql
+  # Update with your MySQL credentials and connection details
+  dsn: "sentinel_user:your_password@tcp(mysql-state.example.com:3306)/sentinel_state"
+
+leader_election:
+  backend: etcd
+  endpoints:
+    - "http://etcd1.example.com:2379"
+    - "http://etcd2.example.com:2379"
+    - "http://etcd3.example.com:2379"
+
+groups:
+  - id: production
+    clusters:
+      - id: prod-mysql-primary
+        seed_nodes:
+          - host: "10.0.1.5"
+            port: 3306
+          - host: "10.0.1.6"
+            port: 3306
+          - host: "10.0.1.7"
+            port: 3306
+
+      - id: prod-mysql-analytics
+        seed_nodes:
+          - host: "10.0.2.10"
+            port: 3306
+          - host: "10.0.2.11"
+            port: 3306
+
+  - id: staging
+    clusters:
+      - id: staging-mysql
+        seed_nodes:
+          - host: "10.1.1.5"
+            port: 3306
+          - host: "10.1.1.6"
+            port: 3306

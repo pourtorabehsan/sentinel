@@ -1,0 +1,73 @@
+# Sentinel Configuration File
+# This is an example configuration for Phase 0 development and testing
+
+# Operational mode: multi (multiple clusters) or single (single cluster)
+mode: multi
+
+# Log level: debug, info, warn, error
+log_level: info
+
+# State store configuration
+# The state store persists cluster topology and state information
+state_store:
+  # Type: mysql, postgresql, or sqlite
+  type: sqlite
+
+  # Data Source Name (DSN)
+  # For SQLite:
+  #   - ":memory:" for in-memory database (development/testing)
+  #   - "file:/path/to/database.db" for persistent file
+  # For MySQL:
+  #   - "user:password@tcp(host:port)/database"
+  # For PostgreSQL:
+  #   - "postgres://user:password@host:port/database"
+  dsn: ":memory:"
+
+# Leader election configuration
+# Leader election ensures only one Sentinel instance manages each cluster
+leader_election:
+  # Backend: etcd, consul, zookeeper, database, or in-memory
+  backend: in-memory
+
+  # Endpoints for the leader election backend
+  # Not required for in-memory backend (development/testing only)
+  endpoints: []
+
+  # For production with etcd:
+  # backend: etcd
+  # endpoints:
+  #   - "http://etcd1:2379"
+  #   - "http://etcd2:2379"
+  #   - "http://etcd3:2379"
+
+# Groups represent logical groupings of clusters (e.g., production, staging)
+groups:
+  # Example group: development/testing
+  - id: test-group
+    clusters:
+      # Example cluster with local MySQL instance
+      - id: test-cluster-1
+        seed_nodes:
+          - host: localhost
+            port: 3306
+
+      # Additional clusters can be added to the same group
+      # - id: test-cluster-2
+      #   seed_nodes:
+      #     - host: localhost
+      #       port: 3307
+
+  # Example group: production (commented out for Phase 0)
+  # - id: production
+  #   clusters:
+  #     - id: prod-mysql-primary
+  #       seed_nodes:
+  #         - host: "10.0.1.5"
+  #           port: 3306
+  #         - host: "10.0.1.6"
+  #           port: 3306
+  #
+  #     - id: prod-mysql-analytics
+  #       seed_nodes:
+  #         - host: "10.0.2.10"
+  #           port: 3306

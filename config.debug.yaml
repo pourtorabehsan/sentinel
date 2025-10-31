@@ -1,0 +1,21 @@
+# Debug configuration to see all log levels
+mode: multi
+log_level: debug
+
+state_store:
+  type: sqlite
+  dsn: ":memory:"
+
+leader_election:
+  backend: in-memory
+  endpoints: []
+
+groups:
+  - id: test-group
+    clusters:
+      - id: test-cluster-1
+        seed_nodes:
+          - host: localhost
+            port: 3306
+          - host: localhost
+            port: 3307

@@ -27,13 +27,104 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for detailed design documentation.
 
 ## Development Status
 
-🚧 **In Development** - Currently in planning phase.
+🚧 **In Development** - Phase 0 (Project Setup) complete.
 
 See [`PHASES.md`](./PHASES.md) for the implementation roadmap and [`CLAUDE.md`](./CLAUDE.md) for development strategy.
 
 ## Quick Start
 
-Coming soon after Phase 0 (Project Setup) is complete.
+### Prerequisites
+
+- Go 1.22.3 or later
+- Make (optional, but recommended)
+
+### Building
+
+```bash
+# Clone the repository
+git clone https://github.com/pourtorabehsan/sentinel.git
+cd sentinel
+
+# Download dependencies
+make deps
+
+# Build the binary
+make build
+```
+
+The binary will be created at `bin/sentinel`.
+
+### Configuration
+
+1. Copy the example configuration:
+```bash
+cp config.example.yaml config.yaml
+```
+
+2. Edit `config.yaml` to match your environment. For local testing, the default `config.yaml` works out of the box with an in-memory state store.
+
+### Running
+
+```bash
+# Run with default config (config.yaml)
+make run
+
+# Or run the binary directly with a custom config
+./bin/sentinel --config=path/to/config.yaml
+
+# Show version
+./bin/sentinel --version
+
+# Adjust log level
+./bin/sentinel --config=config.yaml --log-level=debug
+```
+
+### Development
+
+```bash
+# Run tests
+make test
+
+# Run tests with coverage
+make coverage
+
+# Format code
+make fmt
+
+# Run go vet
+make vet
+
+# Run all checks (fmt, vet, test)
+make check
+
+# Clean build artifacts
+make clean
+```
+
+### Configuration File Structure
+
+```yaml
+mode: multi              # Operation mode: multi or single
+log_level: info          # Log level: debug, info, warn, error
+
+state_store:
+  type: sqlite           # mysql, postgresql, or sqlite
+  dsn: ":memory:"        # Database connection string
+
+leader_election:
+  backend: in-memory     # etcd, consul, zookeeper, database, or in-memory
+  endpoints: []          # Backend endpoints (not needed for in-memory)
+
+groups:
+  - id: test-group
+    clusters:
+      - id: test-cluster-1
+        seed_nodes:
+          - host: localhost
+            port: 3306
+```
+
+See `config.example.yaml` for a production-ready configuration example.
 
 ## Documentation
 

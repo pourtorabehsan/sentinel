@@ -20,4 +20,21 @@
 # Go workspace file
 go.work
 
-bin
+# Build artifacts
+bin/
+*.log
+
+# Coverage reports
+coverage.out
+coverage.html
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
