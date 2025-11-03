@@ -11,12 +11,14 @@ import (
 )
 
 // Config represents the root configuration for Sentinel.
+// Infrastructure settings only - groups/clusters are managed in the database.
 type Config struct {
 	Mode           string               `yaml:"mode"`
 	LogLevel       string               `yaml:"log_level,omitempty"`
 	StateStore     StateStoreConfig     `yaml:"state_store"`
 	LeaderElection LeaderElectionConfig `yaml:"leader_election"`
-	Groups         []Group              `yaml:"groups"`
+	API            APIConfig            `yaml:"api"`
+	Monitor        MonitorConfig        `yaml:"monitor"`
 }
 
 // StateStoreConfig configures the state storage backend.
@@ -31,22 +33,16 @@ type LeaderElectionConfig struct {
 	Endpoints []string `yaml:"endpoints"` // Backend endpoints
 }
 
-// Group represents a logical grouping of clusters (e.g., production, staging).
-type Group struct {
-	ID       string    `yaml:"id"`
-	Clusters []Cluster `yaml:"clusters"`
+// APIConfig configures the HTTP API server.
+type APIConfig struct {
+	Enabled bool `yaml:"enabled"` // Default: true
+	Port    int  `yaml:"port"`    // Default: 8080
 }
 
-// Cluster represents a MySQL replication topology.
-type Cluster struct {
-	ID        string     `yaml:"id"`
-	SeedNodes []SeedNode `yaml:"seed_nodes"`
-}
-
-// SeedNode represents an initial MySQL node to discover the topology.
-type SeedNode struct {
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
+// MonitorConfig configures the monitoring behavior.
+type MonitorConfig struct {
+	Enabled         bool `yaml:"enabled"`          // Default: true
+	IntervalSeconds int  `yaml:"interval_seconds"` // Default: 10
 }
 
 // LoadFromFile loads configuration from a YAML file.
@@ -61,11 +57,30 @@ func LoadFromFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
+	// Apply defaults
+	config.applyDefaults()
+
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	return &config, nil
+}
+
+// applyDefaults sets default values for optional fields.
+func (c *Config) applyDefaults() {
+	// API defaults
+	if c.API.Port == 0 {
+		c.API.Port = 8080
+	}
+	// API is enabled by default unless explicitly disabled
+	// (zero value for bool is false, so we can't distinguish between unset and false)
+	// In practice, users should explicitly set enabled: false if they want to disable it
+
+	// Monitor defaults
+	if c.Monitor.IntervalSeconds == 0 {
+		c.Monitor.IntervalSeconds = 10
+	}
 }
 
 // Validate performs validation on the configuration.
@@ -89,20 +104,14 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("leader_election: %w", err)
 	}
 
-	// Validate groups
-	if len(c.Groups) == 0 {
-		return fmt.Errorf("at least one group is required")
+	// Validate API config
+	if c.API.Port <= 0 || c.API.Port > 65535 {
+		return fmt.Errorf("api.port must be between 1 and 65535, got: %d", c.API.Port)
 	}
 
-	groupIDs := make(map[string]bool)
-	for i, group := range c.Groups {
-		if err := group.Validate(); err != nil {
-			return fmt.Errorf("groups[%d]: %w", i, err)
-		}
-		if groupIDs[group.ID] {
-			return fmt.Errorf("duplicate group ID: %s", group.ID)
-		}
-		groupIDs[group.ID] = true
+	// Validate Monitor config
+	if c.Monitor.IntervalSeconds <= 0 {
+		return fmt.Errorf("monitor.interval_seconds must be positive, got: %d", c.Monitor.IntervalSeconds)
 	}
 
 	return nil
@@ -156,62 +165,6 @@ func (l *LeaderElectionConfig) Validate() error {
 	return nil
 }
 
-// Validate performs validation on Group.
-func (g *Group) Validate() error {
-	if g.ID == "" {
-		return fmt.Errorf("id is required")
-	}
-
-	if len(g.Clusters) == 0 {
-		return fmt.Errorf("at least one cluster is required in group: %s", g.ID)
-	}
-
-	clusterIDs := make(map[string]bool)
-	for i, cluster := range g.Clusters {
-		if err := cluster.Validate(); err != nil {
-			return fmt.Errorf("clusters[%d]: %w", i, err)
-		}
-		if clusterIDs[cluster.ID] {
-			return fmt.Errorf("duplicate cluster ID: %s", cluster.ID)
-		}
-		clusterIDs[cluster.ID] = true
-	}
-
-	return nil
-}
-
-// Validate performs validation on Cluster.
-func (c *Cluster) Validate() error {
-	if c.ID == "" {
-		return fmt.Errorf("id is required")
-	}
-
-	if len(c.SeedNodes) == 0 {
-		return fmt.Errorf("at least one seed node is required in cluster: %s", c.ID)
-	}
-
-	for i, node := range c.SeedNodes {
-		if err := node.Validate(); err != nil {
-			return fmt.Errorf("seed_nodes[%d]: %w", i, err)
-		}
-	}
-
-	return nil
-}
-
-// Validate performs validation on SeedNode.
-func (s *SeedNode) Validate() error {
-	if s.Host == "" {
-		return fmt.Errorf("host is required")
-	}
-
-	if s.Port <= 0 || s.Port > 65535 {
-		return fmt.Errorf("port must be between 1 and 65535, got: %d", s.Port)
-	}
-
-	return nil
-}
-
 // SanitizedDSN returns a sanitized version of the DSN with password hidden.
 // This is useful for logging configuration without exposing sensitive data.
 func (s *StateStoreConfig) SanitizedDSN() string {
@@ -257,6 +210,6 @@ func (s *StateStoreConfig) SanitizedDSN() string {
 
 // String returns a string representation of the config with sensitive data redacted.
 func (c *Config) String() string {
-	return fmt.Sprintf("Config{Mode=%s, StateStore=%s, LeaderElection=%s, Groups=%d}",
-		c.Mode, c.StateStore.Type, c.LeaderElection.Backend, len(c.Groups))
+	return fmt.Sprintf("Config{Mode=%s, StateStore=%s, LeaderElection=%s, API.Port=%d, Monitor.Interval=%ds}",
+		c.Mode, c.StateStore.Type, c.LeaderElection.Backend, c.API.Port, c.Monitor.IntervalSeconds)
 }

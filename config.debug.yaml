@@ -1,4 +1,6 @@
-# Debug configuration to see all log levels
+# Sentinel Configuration File - Debug Mode
+# This configuration is optimized for debugging and development
+
 mode: multi
 log_level: debug
 
@@ -10,12 +12,10 @@ leader_election:
   backend: in-memory
   endpoints: []
 
-groups:
-  - id: test-group
-    clusters:
-      - id: test-cluster-1
-        seed_nodes:
-          - host: localhost
-            port: 3306
-          - host: localhost
-            port: 3307
+api:
+  enabled: true
+  port: 8080
+
+monitor:
+  enabled: true
+  interval_seconds: 5

@@ -17,13 +17,12 @@ state_store:
 leader_election:
   backend: in-memory
   endpoints: []
-groups:
-  - id: test-group
-    clusters:
-      - id: test-cluster
-        seed_nodes:
-          - host: localhost
-            port: 3306
+api:
+  enabled: true
+  port: 8080
+monitor:
+  enabled: true
+  interval_seconds: 10
 `
 
 	tmpDir := t.TempDir()
@@ -43,8 +42,43 @@ groups:
 	if config.LogLevel != "info" {
 		t.Errorf("expected log_level='info', got: %s", config.LogLevel)
 	}
-	if len(config.Groups) != 1 {
-		t.Errorf("expected 1 group, got: %d", len(config.Groups))
+	if config.API.Port != 8080 {
+		t.Errorf("expected api.port=8080, got: %d", config.API.Port)
+	}
+	if config.Monitor.IntervalSeconds != 10 {
+		t.Errorf("expected monitor.interval_seconds=10, got: %d", config.Monitor.IntervalSeconds)
+	}
+}
+
+func TestLoadFromFile_Defaults(t *testing.T) {
+	// Config without API and Monitor sections should get defaults
+	minimalYAML := `
+mode: multi
+state_store:
+  type: sqlite
+  dsn: ":memory:"
+leader_election:
+  backend: in-memory
+  endpoints: []
+`
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(minimalYAML), 0644); err != nil {
+		t.Fatalf("failed to write test config: %v", err)
+	}
+
+	config, err := LoadFromFile(configPath)
+	if err != nil {
+		t.Fatalf("LoadFromFile failed: %v", err)
+	}
+
+	// Check defaults are applied
+	if config.API.Port != 8080 {
+		t.Errorf("expected default api.port=8080, got: %d", config.API.Port)
+	}
+	if config.Monitor.IntervalSeconds != 10 {
+		t.Errorf("expected default monitor.interval_seconds=10, got: %d", config.Monitor.IntervalSeconds)
 	}
 }
 
@@ -95,18 +129,13 @@ func TestConfigValidate(t *testing.T) {
 					Backend:   "in-memory",
 					Endpoints: []string{},
 				},
-				Groups: []Group{
-					{
-						ID: "test-group",
-						Clusters: []Cluster{
-							{
-								ID: "test-cluster",
-								SeedNodes: []SeedNode{
-									{Host: "localhost", Port: 3306},
-								},
-							},
-						},
-					},
+				API: APIConfig{
+					Enabled: true,
+					Port:    8080,
+				},
+				Monitor: MonitorConfig{
+					Enabled:         true,
+					IntervalSeconds: 10,
 				},
 			},
 			expectErr: false,
@@ -118,6 +147,8 @@ func TestConfigValidate(t *testing.T) {
 					Type: "sqlite",
 					DSN:  ":memory:",
 				},
+				API: APIConfig{Port: 8080},
+				Monitor: MonitorConfig{IntervalSeconds: 10},
 			},
 			expectErr: true,
 			errMsg:    "mode is required",
@@ -130,12 +161,14 @@ func TestConfigValidate(t *testing.T) {
 					Type: "sqlite",
 					DSN:  ":memory:",
 				},
+				API: APIConfig{Port: 8080},
+				Monitor: MonitorConfig{IntervalSeconds: 10},
 			},
 			expectErr: true,
 			errMsg:    "mode must be",
 		},
 		{
-			name: "no groups",
+			name: "invalid api port",
 			config: Config{
 				Mode: "multi",
 				StateStore: StateStoreConfig{
@@ -145,13 +178,16 @@ func TestConfigValidate(t *testing.T) {
 				LeaderElection: LeaderElectionConfig{
 					Backend: "in-memory",
 				},
-				Groups: []Group{},
+				API: APIConfig{
+					Port: 0,
+				},
+				Monitor: MonitorConfig{IntervalSeconds: 10},
 			},
 			expectErr: true,
-			errMsg:    "at least one group is required",
+			errMsg:    "api.port must be between",
 		},
 		{
-			name: "duplicate group IDs",
+			name: "invalid monitor interval",
 			config: Config{
 				Mode: "multi",
 				StateStore: StateStoreConfig{
@@ -161,33 +197,13 @@ func TestConfigValidate(t *testing.T) {
 				LeaderElection: LeaderElectionConfig{
 					Backend: "in-memory",
 				},
-				Groups: []Group{
-					{
-						ID: "group1",
-						Clusters: []Cluster{
-							{
-								ID: "cluster1",
-								SeedNodes: []SeedNode{
-									{Host: "localhost", Port: 3306},
-								},
-							},
-						},
-					},
-					{
-						ID: "group1",
-						Clusters: []Cluster{
-							{
-								ID: "cluster2",
-								SeedNodes: []SeedNode{
-									{Host: "localhost", Port: 3307},
-								},
-							},
-						},
-					},
+				API: APIConfig{Port: 8080},
+				Monitor: MonitorConfig{
+					IntervalSeconds: 0,
 				},
 			},
 			expectErr: true,
-			errMsg:    "duplicate group ID",
+			errMsg:    "monitor.interval_seconds must be positive",
 		},
 	}
 
@@ -318,187 +334,6 @@ func TestLeaderElectionConfigValidate(t *testing.T) {
 	}
 }
 
-func TestGroupValidate(t *testing.T) {
-	tests := []struct {
-		name      string
-		group     Group
-		expectErr bool
-		errMsg    string
-	}{
-		{
-			name: "valid group",
-			group: Group{
-				ID: "test-group",
-				Clusters: []Cluster{
-					{
-						ID: "cluster1",
-						SeedNodes: []SeedNode{
-							{Host: "localhost", Port: 3306},
-						},
-					},
-				},
-			},
-			expectErr: false,
-		},
-		{
-			name:      "missing ID",
-			group:     Group{},
-			expectErr: true,
-			errMsg:    "id is required",
-		},
-		{
-			name: "no clusters",
-			group: Group{
-				ID:       "test-group",
-				Clusters: []Cluster{},
-			},
-			expectErr: true,
-			errMsg:    "at least one cluster is required",
-		},
-		{
-			name: "duplicate cluster IDs",
-			group: Group{
-				ID: "test-group",
-				Clusters: []Cluster{
-					{
-						ID: "cluster1",
-						SeedNodes: []SeedNode{
-							{Host: "localhost", Port: 3306},
-						},
-					},
-					{
-						ID: "cluster1",
-						SeedNodes: []SeedNode{
-							{Host: "localhost", Port: 3307},
-						},
-					},
-				},
-			},
-			expectErr: true,
-			errMsg:    "duplicate cluster ID",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.group.Validate()
-			if tt.expectErr && err == nil {
-				t.Error("expected error but got none")
-			}
-			if !tt.expectErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
-			if tt.expectErr && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
-				t.Errorf("expected error containing %q, got: %v", tt.errMsg, err)
-			}
-		})
-	}
-}
-
-func TestClusterValidate(t *testing.T) {
-	tests := []struct {
-		name      string
-		cluster   Cluster
-		expectErr bool
-		errMsg    string
-	}{
-		{
-			name: "valid cluster",
-			cluster: Cluster{
-				ID: "test-cluster",
-				SeedNodes: []SeedNode{
-					{Host: "localhost", Port: 3306},
-				},
-			},
-			expectErr: false,
-		},
-		{
-			name:      "missing ID",
-			cluster:   Cluster{},
-			expectErr: true,
-			errMsg:    "id is required",
-		},
-		{
-			name: "no seed nodes",
-			cluster: Cluster{
-				ID:        "test-cluster",
-				SeedNodes: []SeedNode{},
-			},
-			expectErr: true,
-			errMsg:    "at least one seed node is required",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.cluster.Validate()
-			if tt.expectErr && err == nil {
-				t.Error("expected error but got none")
-			}
-			if !tt.expectErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
-			if tt.expectErr && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
-				t.Errorf("expected error containing %q, got: %v", tt.errMsg, err)
-			}
-		})
-	}
-}
-
-func TestSeedNodeValidate(t *testing.T) {
-	tests := []struct {
-		name      string
-		node      SeedNode
-		expectErr bool
-		errMsg    string
-	}{
-		{
-			name:      "valid node",
-			node:      SeedNode{Host: "localhost", Port: 3306},
-			expectErr: false,
-		},
-		{
-			name:      "missing host",
-			node:      SeedNode{Port: 3306},
-			expectErr: true,
-			errMsg:    "host is required",
-		},
-		{
-			name:      "invalid port zero",
-			node:      SeedNode{Host: "localhost", Port: 0},
-			expectErr: true,
-			errMsg:    "port must be between",
-		},
-		{
-			name:      "invalid port negative",
-			node:      SeedNode{Host: "localhost", Port: -1},
-			expectErr: true,
-			errMsg:    "port must be between",
-		},
-		{
-			name:      "invalid port too large",
-			node:      SeedNode{Host: "localhost", Port: 65536},
-			expectErr: true,
-			errMsg:    "port must be between",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.node.Validate()
-			if tt.expectErr && err == nil {
-				t.Error("expected error but got none")
-			}
-			if !tt.expectErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
-			if tt.expectErr && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
-				t.Errorf("expected error containing %q, got: %v", tt.errMsg, err)
-			}
-		})
-	}
-}
-
 func TestSanitizedDSN(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -553,9 +388,11 @@ func TestConfigString(t *testing.T) {
 		LeaderElection: LeaderElectionConfig{
 			Backend: "in-memory",
 		},
-		Groups: []Group{
-			{ID: "group1"},
-			{ID: "group2"},
+		API: APIConfig{
+			Port: 8080,
+		},
+		Monitor: MonitorConfig{
+			IntervalSeconds: 10,
 		},
 	}
 
@@ -563,7 +400,10 @@ func TestConfigString(t *testing.T) {
 	if !strings.Contains(result, "Mode=multi") {
 		t.Errorf("expected Mode=multi in output, got: %s", result)
 	}
-	if !strings.Contains(result, "Groups=2") {
-		t.Errorf("expected Groups=2 in output, got: %s", result)
+	if !strings.Contains(result, "API.Port=8080") {
+		t.Errorf("expected API.Port=8080 in output, got: %s", result)
+	}
+	if !strings.Contains(result, "Monitor.Interval=10s") {
+		t.Errorf("expected Monitor.Interval=10s in output, got: %s", result)
 	}
 }

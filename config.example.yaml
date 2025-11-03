@@ -1,45 +1,45 @@
-# Sentinel Production Configuration Example
+# Sentinel Configuration File - Example
 # Copy this file to config.yaml and customize for your environment
 
+# Operational mode: multi (multiple clusters) or single (single cluster)
 mode: multi
+
+# Log level: debug, info, warn, error
 log_level: info
 
+# State store configuration
 state_store:
-  type: mysql
-  # Update with your MySQL credentials and connection details
-  dsn: "sentinel_user:your_password@tcp(mysql-state.example.com:3306)/sentinel_state"
+  # For development with SQLite
+  type: sqlite
+  dsn: "file:sentinel.db"
 
+  # For production with MySQL
+  # type: mysql
+  # dsn: "sentinel_user:password@tcp(mysql-host:3306)/sentinel"
+
+  # For production with PostgreSQL
+  # type: postgresql
+  # dsn: "postgres://sentinel_user:password@postgres-host:5432/sentinel?sslmode=require"
+
+# Leader election configuration
 leader_election:
-  backend: etcd
-  endpoints:
-    - "http://etcd1.example.com:2379"
-    - "http://etcd2.example.com:2379"
-    - "http://etcd3.example.com:2379"
+  # For development
+  backend: in-memory
+  endpoints: []
 
-groups:
-  - id: production
-    clusters:
-      - id: prod-mysql-primary
-        seed_nodes:
-          - host: "10.0.1.5"
-            port: 3306
-          - host: "10.0.1.6"
-            port: 3306
-          - host: "10.0.1.7"
-            port: 3306
+  # For production with etcd
+  # backend: etcd
+  # endpoints:
+  #   - "http://etcd1:2379"
+  #   - "http://etcd2:2379"
+  #   - "http://etcd3:2379"
 
-      - id: prod-mysql-analytics
-        seed_nodes:
-          - host: "10.0.2.10"
-            port: 3306
-          - host: "10.0.2.11"
-            port: 3306
+# API server configuration
+api:
+  enabled: true
+  port: 8080
 
-  - id: staging
-    clusters:
-      - id: staging-mysql
-        seed_nodes:
-          - host: "10.1.1.5"
-            port: 3306
-          - host: "10.1.1.6"
-            port: 3306
+# Monitoring configuration
+monitor:
+  enabled: true
+  interval_seconds: 10

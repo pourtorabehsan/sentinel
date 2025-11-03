@@ -1,5 +1,5 @@
 # Sentinel Configuration File
-# This is an example configuration for Phase 0 development and testing
+# This is the main configuration for Sentinel
 
 # Operational mode: multi (multiple clusters) or single (single cluster)
 mode: multi
@@ -16,12 +16,12 @@ state_store:
   # Data Source Name (DSN)
   # For SQLite:
   #   - ":memory:" for in-memory database (development/testing)
-  #   - "file:/path/to/database.db" for persistent file
+  #   - "file:sentinel.db" for persistent file
   # For MySQL:
   #   - "user:password@tcp(host:port)/database"
   # For PostgreSQL:
   #   - "postgres://user:password@host:port/database"
-  dsn: ":memory:"
+  dsn: "file:sentinel.db"
 
 # Leader election configuration
 # Leader election ensures only one Sentinel instance manages each cluster
@@ -40,34 +40,17 @@ leader_election:
   #   - "http://etcd2:2379"
   #   - "http://etcd3:2379"
 
-# Groups represent logical groupings of clusters (e.g., production, staging)
-groups:
-  # Example group: development/testing
-  - id: test-group
-    clusters:
-      # Example cluster with local MySQL instance
-      - id: test-cluster-1
-        seed_nodes:
-          - host: localhost
-            port: 3306
+# API server configuration
+api:
+  enabled: true
+  port: 8080
 
-      # Additional clusters can be added to the same group
-      # - id: test-cluster-2
-      #   seed_nodes:
-      #     - host: localhost
-      #       port: 3307
+# Monitoring configuration
+monitor:
+  enabled: true
+  interval_seconds: 10
 
-  # Example group: production (commented out for Phase 0)
-  # - id: production
-  #   clusters:
-  #     - id: prod-mysql-primary
-  #       seed_nodes:
-  #         - host: "10.0.1.5"
-  #           port: 3306
-  #         - host: "10.0.1.6"
-  #           port: 3306
-  #
-  #     - id: prod-mysql-analytics
-  #       seed_nodes:
-  #         - host: "10.0.2.10"
-  #           port: 3306
+# NOTE: Groups and clusters are NOT defined in this config file.
+# They are managed in the database via:
+# - CLI commands: sentinel discover --cluster-id=... --seed=...
+# - API endpoints (Phase 5+): POST /api/v1/groups, POST /api/v1/clusters
